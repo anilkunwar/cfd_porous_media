@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import io
 import base64
+import json
 
 # Page Configuration
 st.set_page_config(
@@ -32,59 +33,59 @@ for anisotropic porous materials like Polydimethylsiloxane (PDMS) sponges.
 ### 1. **Directional Porosity**
 Porosity varies with direction in orthotropic materials:
 $$
-\phi_i = \text{Porosity in direction } i \quad (i = x, y, z)
+\\phi_i = \\text{Porosity in direction } i \\quad (i = x, y, z)
 $$
-where $\phi_i$ represents porosity normal to the plane perpendicular to direction $i$.
+where $\\phi_i$ represents porosity normal to the plane perpendicular to direction $i$.
 
 ### 2. **Permeability Power Law**
 The principal permeability components follow a power-law relationship:
 $$
-\boxed{\kappa_{ii} = \beta_i \times (\phi_i)^{m_i}}
+\\boxed{\\kappa_{ii} = \\beta_i \\times (\\phi_i)^{m_i}}
 $$
-- $\kappa_{ii}$: Permeability component in direction $i$ (m²)
-- $\beta_i$: Empirical constant (m²)
-- $\phi_i$: Directional porosity (dimensionless, 0-1)
+- $\\kappa_{ii}$: Permeability component in direction $i$ (m²)
+- $\\beta_i$: Empirical constant (m²)
+- $\\phi_i$: Directional porosity (dimensionless, 0–1)
 - $m_i$: Empirical exponent
 
 ### 3. **Permeability Tensor**
 For orthotropic materials, the permeability tensor is diagonal:
 $$
-\boldsymbol{\kappa} = 
-\begin{bmatrix}
-\kappa_{xx} & 0 & 0 \\\\
-0 & \kappa_{yy} & 0 \\\\
-0 & 0 & \kappa_{zz}
-\end{bmatrix}
-\quad \text{(m²)}
+\\boldsymbol{\\kappa} = 
+\\begin{bmatrix}
+\\kappa_{xx} & 0 & 0 \\\\
+0 & \\kappa_{yy} & 0 \\\\
+0 & 0 & \\kappa_{zz}
+\\end{bmatrix}
+\\quad \\text{(m²)}
 $$
 
 ### 4. **Porous Resistivity Tensor**
 The resistivity tensor is the inverse of the permeability tensor:
 $$
-\mathbf{R} = \boldsymbol{\kappa}^{-1} = 
-\begin{bmatrix}
+\\mathbf{R} = \\boldsymbol{\\kappa}^{-1} = 
+\\begin{bmatrix}
 R_{xx} & 0 & 0 \\\\
 0 & R_{yy} & 0 \\\\
 0 & 0 & R_{zz}
-\end{bmatrix}
-\quad \text{(m⁻²)}
+\\end{bmatrix}
+\\quad \\text{(m⁻²)}
 $$
-where $R_{ii} = 1/\kappa_{ii}$ for the diagonal components.
+where $R_{ii} = 1/\\kappa_{ii}$ for the diagonal components.
 
 ### 5. **Navier-Stokes Extension for Porous Media**
 The momentum equation for flow through porous media includes a resistivity term:
 $$
-\rho \frac{\partial \mathbf{v}}{\partial t} + \rho (\mathbf{v} \cdot \nabla) \mathbf{v} = 
--\nabla p + \mu \nabla^2 \mathbf{v} - \mu \mathbf{R} \mathbf{v}
+\\rho \\frac{\\partial \\mathbf{v}}{\\partial t} + \\rho (\\mathbf{v} \\cdot \\nabla) \\mathbf{v} = 
+-\\nabla p + \\mu \\nabla^2 \\mathbf{v} - \\mu \\mathbf{R} \\mathbf{v}
 $$
-where $\mathbf{R}$ is the resistivity tensor representing drag forces from the porous structure.
+where $\\mathbf{R}$ is the resistivity tensor representing drag forces from the porous structure.
 
 ### 6. **Tensor Representation Surface**
 The visualization shows a quadric surface representing the tensor magnitude in all directions:
 $$
-\mathbf{n}^T \boldsymbol{\kappa} \mathbf{n} = \text{constant}
+\\mathbf{n}^T \\boldsymbol{\\kappa} \\mathbf{n} = \\text{constant}
 $$
-where $\mathbf{n}$ is a unit direction vector.
+where $\\mathbf{n}$ is a unit direction vector.
 """)
 
 # Add a separator
@@ -115,9 +116,10 @@ def compute_permeability_matrix(phi_x, phi_y, phi_z, Bx, By, Bz, mx, my, mz):
     k33 = Bz * (phi_z)**mz
     
     # Ensure positive definiteness
-    permeability_matrix = np.maximum(np.array([[k11, 0, 0],
-                                               [0, k22, 0],
-                                               [0, 0, k33]]), 1e-20)
+    permeability_matrix = np.array([[k11, 0, 0],
+                                    [0, k22, 0],
+                                    [0, 0, k33]])
+    permeability_matrix = np.maximum(permeability_matrix, 1e-30)  # Avoid zero
     
     return permeability_matrix, (k11, k22, k33)
 
@@ -132,6 +134,7 @@ def compute_ellipsoid_points(a, b, c, n_points=100):
 
 def compute_tensor_magnitude(x, y, z, tensor_matrix, scaling_factors):
     """Compute tensor magnitude at each point on ellipsoid."""
+    # Normalize coordinates by scaling factors
     x_norm = x / scaling_factors[0]
     y_norm = y / scaling_factors[1]
     z_norm = z / scaling_factors[2]
@@ -212,7 +215,7 @@ viz_library = st.sidebar.radio(
     index=0
 )
 
-# Enhanced colormap selection with ALL available colormaps including rainbow, jet, turbo
+# Enhanced colormap selection
 all_colormaps = sorted(plt.colormaps())
 
 # Create categorized colormaps
@@ -239,13 +242,10 @@ cmap_categories = {
                 'nipy_spectral', 'gist_ncar', 'gist_yarg', 'gist_gray', 'gray', 'binary']
 }
 
-# Ensure rainbow, jet, and turbo are included
-if 'rainbow' not in cmap_categories["Classic"]:
-    cmap_categories["Classic"].append('rainbow')
-if 'jet' not in cmap_categories["Classic"]:
-    cmap_categories["Classic"].append('jet')
-if 'turbo' not in cmap_categories["Classic"]:
-    cmap_categories["Classic"].append('turbo')
+# Ensure rainbow, jet, turbo are included
+for cmap in ['rainbow', 'jet', 'turbo']:
+    if cmap not in cmap_categories["Classic"]:
+        cmap_categories["Classic"].append(cmap)
 
 selected_category = st.sidebar.selectbox("Colormap Category:", list(cmap_categories.keys()))
 cmap_name = st.sidebar.selectbox(f"Select {selected_category} colormap:", 
@@ -323,19 +323,23 @@ if viz_library == 'Plotly (Interactive)':
             subplot_titles=(f'{visualization_option} Tensor',)
         )
     
-    # Get colormap
+    # Get matplotlib colormap
     matplotlib_cmap = cm.get_cmap(cmap_name)
     
     # Helper function to create Plotly surface
     def create_plotly_surface(tensor_matrix, title, colorbar_title, is_resistivity=False):
         if is_resistivity:
-            # Scaling for resistivity
-            a, b, c = np.sqrt(np.diag(tensor_matrix))
+            # For resistivity, use sqrt of diagonal as scaling
+            diag_vals = np.diag(tensor_matrix)
+            a, b, c = np.sqrt(diag_vals)
             scaling_factors = (a, b, c)
         else:
-            # Scaling for permeability
-            scaling_factors = (np.sqrt(k11/Bx), np.sqrt(k22/By), np.sqrt(k33/Bz))
-            a, b, c = scaling_factors
+            # For permeability, use sqrt of (kappa / beta) as scaling
+            # This ensures consistent shape representation
+            a = np.sqrt(k11 / Bx) if Bx > 0 else 1.0
+            b = np.sqrt(k22 / By) if By > 0 else 1.0
+            c = np.sqrt(k33 / Bz) if Bz > 0 else 1.0
+            scaling_factors = (a, b, c)
         
         # Generate ellipsoid
         X, Y, Z = compute_ellipsoid_points(a, b, c, n_points=resolution)
@@ -343,24 +347,21 @@ if viz_library == 'Plotly (Interactive)':
         # Compute tensor magnitude
         magnitude = compute_tensor_magnitude(X, Y, Z, tensor_matrix, scaling_factors)
         
-        # Normalize for coloring
-        magnitude_normalized = (magnitude - magnitude.min()) / (magnitude.max() - magnitude.min())
-        
-        # Create colors from colormap
-        colors_rgb = []
-        for val in magnitude_normalized.flatten():
-            rgba = matplotlib_cmap(val)
-            colors_rgb.append(f'rgb({int(rgba[0]*255)},{int(rgba[1]*255)},{int(rgba[2]*255)})')
-        
-        colors_rgb = np.array(colors_rgb).reshape(X.shape)
+        # Create a proper Plotly colorscale by sampling the matplotlib colormap
+        n_colors = 256
+        sample_points = np.linspace(0, 1, n_colors)
+        colors_rgba = matplotlib_cmap(sample_points)  # Shape: (n_colors, 4)
+        colors_plotly = [
+            [t, f"rgb({int(r*255)},{int(g*255)},{int(b*255)})"] 
+            for t, (r, g, b, a_val) in zip(sample_points, colors_rgba)
+        ]
         
         # Create surface trace
         surface = go.Surface(
             x=X, y=Y, z=Z,
             surfacecolor=magnitude,
-            colorscale=[[i/(len(matplotlib_cmap.colors)-1), f'rgb({int(c[0]*255)},{int(c[1]*255)},{int(c[2]*255)})'] 
-                       for i, c in enumerate(matplotlib_cmap.colors)],
-            colorbar=dict(title=colorbar_title, titleside='right'),
+            colorscale=colors_plotly,
+            colorbar=dict(title=colorbar_title, titleside='right') if show_colorbar else None,
             opacity=transparency,
             contours=dict(
                 x=dict(show=show_contour, color='gray', width=1),
@@ -392,21 +393,24 @@ if viz_library == 'Plotly (Interactive)':
         )
         fig.add_trace(surf_res, row=1, col=2)
         
-        # Update layout for both
+        # Update scenes
+        max_range_perm = max(np.ptp(X_perm), np.ptp(Y_perm), np.ptp(Z_perm))
+        max_range_res = max(np.ptp(X_res), np.ptp(Y_res), np.ptp(Z_res))
+        
         scene1 = dict(
             xaxis_title='X Direction',
             yaxis_title='Y Direction',
             zaxis_title='Z Direction',
-            aspectratio=dict(x=np.ptp(X_perm), y=np.ptp(Y_perm), z=np.ptp(Z_perm)),
-            aspectmode='manual'
+            aspectratio=dict(x=1, y=1, z=1),
+            aspectmode='cube'
         )
         
         scene2 = dict(
             xaxis_title='X Direction',
             yaxis_title='Y Direction',
             zaxis_title='Z Direction',
-            aspectratio=dict(x=np.ptp(X_res), y=np.ptp(Y_res), z=np.ptp(Z_res)),
-            aspectmode='manual'
+            aspectratio=dict(x=1, y=1, z=1),
+            aspectmode='cube'
         )
         
         fig.update_layout(
@@ -438,8 +442,8 @@ if viz_library == 'Plotly (Interactive)':
             xaxis_title='X Direction',
             yaxis_title='Y Direction',
             zaxis_title='Z Direction',
-            aspectratio=dict(x=np.ptp(X), y=np.ptp(Y), z=np.ptp(Z)),
-            aspectmode='manual'
+            aspectratio=dict(x=1, y=1, z=1),
+            aspectmode='cube'
         )
         
         fig.update_layout(
@@ -453,9 +457,12 @@ if viz_library == 'Plotly (Interactive)':
     
     # Add coordinate axes if requested
     if show_axes:
-        axis_length = max(np.max(X), np.max(Y), np.max(Z)) * 1.5
+        # Determine axis length from data
+        all_X = X_perm if visualization_option == 'Both' else X
+        all_Y = Y_perm if visualization_option == 'Both' else Y
+        all_Z = Z_perm if visualization_option == 'Both' else Z
+        axis_length = max(np.max(np.abs(all_X)), np.max(np.abs(all_Y)), np.max(np.abs(all_Z))) * 1.2
         
-        # Add axes lines
         fig.add_trace(go.Scatter3d(
             x=[0, axis_length], y=[0, 0], z=[0, 0],
             mode='lines',
@@ -511,13 +518,14 @@ else:  # Matplotlib visualization
         axes, tensors, titles, colorbar_titles, is_resistivity_list)):
         
         if is_resistivity:
-            # Scaling for resistivity
-            a, b, c = np.sqrt(np.diag(tensor_matrix))
+            diag_vals = np.diag(tensor_matrix)
+            a, b, c = np.sqrt(diag_vals)
             scaling_factors = (a, b, c)
         else:
-            # Scaling for permeability
-            scaling_factors = (np.sqrt(k11/Bx), np.sqrt(k22/By), np.sqrt(k33/Bz))
-            a, b, c = scaling_factors
+            a = np.sqrt(k11 / Bx) if Bx > 0 else 1.0
+            b = np.sqrt(k22 / By) if By > 0 else 1.0
+            c = np.sqrt(k33 / Bz) if Bz > 0 else 1.0
+            scaling_factors = (a, b, c)
         
         # Generate ellipsoid
         X, Y, Z = compute_ellipsoid_points(a, b, c, n_points=resolution)
@@ -529,31 +537,37 @@ else:  # Matplotlib visualization
         norm = plt.Normalize(magnitude.min(), magnitude.max())
         
         # Create surface
-        if show_wireframe and 'show_wireframe' in locals():
+        if show_wireframe:
             ax.plot_wireframe(X, Y, Z, color='gray', alpha=0.3, linewidth=0.5)
         
         surf = ax.plot_surface(X, Y, Z, facecolors=cmap(norm(magnitude)),
-                              rstride=2, cstride=2, alpha=transparency,
-                              linewidth=0.1, antialiased=True, shade=True)
+                              rstride=1, cstride=1, alpha=transparency,
+                              linewidth=0, antialiased=True, shade=True)
         
         # Add coordinate axes
         if show_axes:
-            axis_length = max(a, b, c) * 1.5
+            axis_length = max(a, b, c) * 1.2
             ax.quiver(0, 0, 0, axis_length, 0, 0, color='red', arrow_length_ratio=0.1, linewidth=2)
             ax.quiver(0, 0, 0, 0, axis_length, 0, color='green', arrow_length_ratio=0.1, linewidth=2)
             ax.quiver(0, 0, 0, 0, 0, axis_length, color='blue', arrow_length_ratio=0.1, linewidth=2)
-            ax.text(axis_length, 0, 0, 'X', fontsize=12, color='red', ha='center')
-            ax.text(0, axis_length, 0, 'Y', fontsize=12, color='green', ha='center')
-            ax.text(0, 0, axis_length, 'Z', fontsize=12, color='blue', ha='center')
+            ax.text(axis_length, 0, 0, 'X', fontsize=12, color='red')
+            ax.text(0, axis_length, 0, 'Y', fontsize=12, color='green')
+            ax.text(0, 0, axis_length, 'Z', fontsize=12, color='blue')
         
         # Set labels and title
-        ax.set_xlabel('X Direction', fontsize=11, labelpad=10)
-        ax.set_ylabel('Y Direction', fontsize=11, labelpad=10)
-        ax.set_zlabel('Z Direction', fontsize=11, labelpad=10)
-        ax.set_title(title, fontsize=14, pad=20)
+        ax.set_xlabel('X Direction', fontsize=11)
+        ax.set_ylabel('Y Direction', fontsize=11)
+        ax.set_zlabel('Z Direction', fontsize=11)
+        ax.set_title(title, fontsize=14)
         
-        # Set aspect ratio
-        ax.set_box_aspect([np.ptp(X), np.ptp(Y), np.ptp(Z)])
+        # Equal aspect ratio
+        max_range = max(np.ptp(X), np.ptp(Y), np.ptp(Z))
+        mid_x = (X.max() + X.min()) / 2
+        mid_y = (Y.max() + Y.min()) / 2
+        mid_z = (Z.max() + Z.min()) / 2
+        ax.set_xlim(mid_x - max_range/2, mid_x + max_range/2)
+        ax.set_ylim(mid_y - max_range/2, mid_y + max_range/2)
+        ax.set_zlim(mid_z - max_range/2, mid_z + max_range/2)
         
         # Add colorbar
         if show_colorbar:
@@ -562,14 +576,11 @@ else:  # Matplotlib visualization
             cbar = plt.colorbar(sm, ax=ax, shrink=0.6, aspect=20, pad=0.1)
             cbar.set_label(colorbar_title, fontsize=11, rotation=270, labelpad=15)
         
-        # Add grid and style
+        # Style
         ax.grid(True, alpha=0.3)
         ax.xaxis.pane.fill = False
         ax.yaxis.pane.fill = False
         ax.zaxis.pane.fill = False
-        ax.xaxis.pane.set_edgecolor('w')
-        ax.yaxis.pane.set_edgecolor('w')
-        ax.zaxis.pane.set_edgecolor('w')
     
     plt.tight_layout()
     st.pyplot(fig)
@@ -584,7 +595,6 @@ st.subheader("📥 Download Results")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    # Download permeability tensor as CSV
     df_k = pd.DataFrame(permeability_matrix, 
                        index=['X', 'Y', 'Z'], 
                        columns=['X', 'Y', 'Z'])
@@ -597,7 +607,6 @@ with col1:
     )
 
 with col2:
-    # Download resistivity tensor as CSV
     df_r = pd.DataFrame(porous_resistivity_matrix,
                        index=['X', 'Y', 'Z'],
                        columns=['X', 'Y', 'Z'])
@@ -610,7 +619,6 @@ with col2:
     )
 
 with col3:
-    # Download summary as JSON
     summary = {
         "parameters": {
             "phi_x": phi_x, "phi_y": phi_y, "phi_z": phi_z,
@@ -630,7 +638,6 @@ with col3:
         }
     }
     
-    import json
     json_str = json.dumps(summary, indent=2)
     st.download_button(
         label="Download Summary (JSON)",
@@ -692,6 +699,6 @@ st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: gray; font-size: 0.9em;">
 <p><strong>Orthotropic Tensor Analyzer</strong> • Based on: <em>"Microstructural contributions of PDMS sponges to their water treatment efficacy"</em></p>
-<p>Tensor visualization using power law: κᵢᵢ = βᵢ × (φᵢ)^{mᵢ} • PDMS defaults from experimental measurements</p>
+<p>Tensor visualization using power law: $\\kappa_{ii} = \\beta_i \\times (\\phi_i)^{m_i}$ • PDMS defaults from experimental measurements</p>
 </div>
 """, unsafe_allow_html=True)
