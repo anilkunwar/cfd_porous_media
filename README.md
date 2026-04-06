@@ -13,5 +13,5 @@ FEA
 
 # How to Cite This Work: 
 
-Y. M. Tsekpo et al., “Tailoring pore architecture for enhanced hydraulic performance in nanofiller-modified PDMS composites: an integrated micro-CT and CFD study,” Materials & Design, p. 115955, Apr. 2026, doi: 10.1016/j.matdes.2026.115955.
+Y. M. Tsekpo et al., “Tailoring pore architecture for enhanced hydraulic performance in nanofiller-modified PDMS composites: an integrated micro-CT and CFD study,” Materials & Design, p. 115955, Apr. 2026, doi:[10.1016/j.matdes.2026.115955](https://doi.org/10.1016/j.matdes.2026.115955). 
 
