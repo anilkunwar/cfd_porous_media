@@ -9,3 +9,9 @@ Materials Properties
 [![meaningtowords](https://img.shields.io/badge/matensors3-streamlit-red)](https://porosity-permeability-tensors3.streamlit.app/)  (advanced)
 
 FEA
+
+
+# How to Cite This Work: 
+
+Y. M. Tsekpo et al., “Tailoring pore architecture for enhanced hydraulic performance in nanofiller-modified PDMS composites: an integrated micro-CT and CFD study,” Materials & Design, p. 115955, Apr. 2026, doi: 10.1016/j.matdes.2026.115955.
+
